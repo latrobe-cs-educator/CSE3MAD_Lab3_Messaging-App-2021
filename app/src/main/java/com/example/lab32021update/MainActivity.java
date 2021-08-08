@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
         return permissionStatus;
     }
 
-    //check if required permissions are enabled
+    //helper function to ask user permissions
     private void askPermissions() {
         if (!hasPermissions()) {
             Log.d(TAG, "Launching multiple contract permission launcher for ALL required permissions");
@@ -103,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //Result launcher for permissions
-    private ActivityResultLauncher<String[]> multiplePermissionActivityResultLauncher =
+    private final ActivityResultLauncher<String[]> multiplePermissionActivityResultLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGranted -> {
                 Log.d(TAG, "Launcher result: " + isGranted.toString());
                 if (isGranted.containsValue(false)) {
