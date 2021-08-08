@@ -5,7 +5,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.content.Intent;
@@ -18,6 +17,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -26,11 +26,11 @@ public class MainActivity extends AppCompatActivity {
     Button sendButton = null;
     TextView numView = null;
 
-    //Codes
-    private static final int CONTACT_PERMISSION_CODE = 1;
-
     //Data variables
     private String contactNumber = null;
+
+    //Required permissions array
+    final String[] PERMISSIONS = {Manifest.permission.READ_CONTACTS, Manifest.permission.SEND_SMS};
 
     //Debug
     String TAG = "TAG";
@@ -44,17 +44,22 @@ public class MainActivity extends AppCompatActivity {
         selectButton = (Button) findViewById(R.id.selectContactBtn);
         sendButton = (Button) findViewById(R.id.sendButton);
         numView = (TextView) findViewById(R.id.SMSTV);
+
         //make send button inactive
         sendButton.setEnabled(false);
+
+        //ask user for outstanding permissions
+        askPermissions();
 
         //Button listener
         selectButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 //First we need to check permissions
-                if (!checkContactPermission()) {
-                    Log.d(TAG, "Requesting permission");
-                    requestContactPermission();
+                if (!hasPermissions()) {
+                    Log.d(TAG, "Permission denied");
+                    Toast.makeText(getApplicationContext(), "Insufficent permissions to use app", Toast.LENGTH_SHORT).show();
+
                 } else {
                     //launch contact picker as we have permission
                     Log.d(TAG, "App has permission");
@@ -73,26 +78,46 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    //check if contact permission was granted or not
-    private boolean checkContactPermission() {
-        boolean result = ContextCompat.checkSelfPermission(this,
-                Manifest.permission.READ_CONTACTS) == (PackageManager.PERMISSION_GRANTED);
-        Log.d(TAG, "result is " + result);
-        return result; // true if permission granted, false if not
+    //helper function to check permission status
+    private boolean hasPermissions() {
+        boolean permissionStatus = true;
+        for (String permission : PERMISSIONS) {
+            if (ActivityCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Permission is granted: " + permission);
+            } else {
+                Log.d(TAG, "Permission is not granted: " + permission);
+                permissionStatus = false;
+            }
+        }
+        return permissionStatus;
     }
 
-    //request permission to read contacts
-    private void requestContactPermission() {
-        String[] permission = {Manifest.permission.READ_CONTACTS};
-        ActivityCompat.requestPermissions(this, permission, CONTACT_PERMISSION_CODE);
+    //check if required permissions are enabled
+    private void askPermissions() {
+        if (!hasPermissions()) {
+            Log.d(TAG, "Launching multiple contract permission launcher for ALL required permissions");
+            multiplePermissionActivityResultLauncher.launch(PERMISSIONS);
+        } else {
+            Log.d(TAG, "All permissions are already granted");
+        }
     }
+
+    //Result launcher for permissions
+    private ActivityResultLauncher<String[]> multiplePermissionActivityResultLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), isGranted -> {
+                Log.d(TAG, "Launcher result: " + isGranted.toString());
+                if (isGranted.containsValue(false)) {
+                    Log.d(TAG, "At least one of the permissions was not granted, please enable permissions to ensure app functionality");
+                }
+            });
+
 
     //Result launcher for contact picker
     ActivityResultLauncher<Void> mStartForResult = registerForActivityResult(
             new ActivityResultContracts.PickContact(), new ActivityResultCallback<Uri>() {
                 @Override
                 public void onActivityResult(Uri contactUri) {
-                    if(contactUri != null) {
+                    if (contactUri != null) {
                         Cursor cursor = getContentResolver().query(contactUri,
                                 null,
                                 null,
@@ -132,10 +157,10 @@ public class MainActivity extends AppCompatActivity {
                                         sendButton.setEnabled(false);
                                     }
                                 }
+                                cursor2.close();
                             }
                         }
                     }
                 }
             });
-
 }
